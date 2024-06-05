@@ -12,6 +12,13 @@
       "startBlock": 15411056,
       "abi": "Bridge",
       "file": "./src/handlers/ethereum/messagesAndEthDeposits.ts"
+    },
+    {
+      "name": "oldL1Bridge",
+      "address": "0x011B6E24FfB0B5f5fCc564cf4183C5BBBc96D515",
+      "startBlock": 15411056,
+      "abi": "Bridge",
+      "file": "./src/handlers/ethereum/messagesAndEthDeposits.ts"
     }
   ],
   "L1Gateways": [

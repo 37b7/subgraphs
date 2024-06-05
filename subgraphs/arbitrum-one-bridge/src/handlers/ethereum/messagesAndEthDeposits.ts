@@ -5,7 +5,7 @@ import {
 } from "../../sdk/protocols/bridge/enums";
 import { networkToChainID } from "../../sdk/protocols/bridge/chainIds";
 import { ETH_NAME, ETH_SYMBOL, Network } from "../../sdk/util/constants";
-import { MessageDelivered } from "../../../generated/L1Bridge/Bridge";
+import { MessageDelivered, BridgeCallTriggered} from "../../../generated/L1Bridge/Bridge";
 import {
   ethSideConf,
   ethAddress,
@@ -78,6 +78,64 @@ export function handleL1MessageDelivered(event: MessageDelivered): void {
       networkToChainID(Network.ARBITRUM_ONE),
       event.transaction.to!, // don't have access to receiver
       event.params.messageDataHash
+    );
+  }
+}
+
+export function handleL1BridgeCallTriggered(event: BridgeCallTriggered): void {
+
+  // -- SDK
+
+  const sdk = SDK.initialize(
+    ethSideConf,
+    new Pricer(event.block),
+    new TokenInit(),
+    event
+  );
+
+  // -- ACCOUNT
+
+  const sender = Address.fromString(undoAlias(event.params.sender));
+  const acc = sdk.Accounts.loadAccount(sender);
+
+  // -- HANDLE CALLS
+
+  if(event.params.value != 0) {
+
+    // -- TOKENS
+
+    // source and destination token == ethAddress
+    const crossToken = sdk.Tokens.getOrCreateCrosschainToken(
+      networkToChainID(Network.ARBITRUM_ONE),
+      ethAddress,
+      CrosschainTokenType.CANONICAL,
+      ethAddress
+    );
+
+    // -- POOL
+
+    const poolId = event.address;
+    const pool = sdk.Pools.loadPool<string>(poolId);
+
+    if (!pool.isInitialized) {
+      pool.initialize(
+        ETH_NAME,
+        ETH_SYMBOL,
+        BridgePoolType.LOCK_RELEASE,
+        sdk.Tokens.getOrCreateToken(ethAddress)
+      );
+    }
+
+    pool.addDestinationToken(crossToken);
+
+    // -- ACCOUNT
+
+    acc.transferOut(
+      pool,
+      pool.getDestinationTokenRoute(crossToken)!,
+      sender,
+      event.params.value,
+      event.transaction.hash
     );
   }
 }
